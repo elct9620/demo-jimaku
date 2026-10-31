@@ -6,15 +6,12 @@ require 'sentence_detector'
 require 'subtitle_bar'
 require 'transcriber'
 
-BREEZE = 'vendor/models/ggml-breeze-asr-25-q5_0.bin'
-SILERO = 'vendor/models/ggml-silero-v6.2.0.bin'
-RATE = 16_000
-TAIL = RATE / 2 # kept during silence, so the next word keeps its onset
+TAIL = Microphone::RATE / 2 # kept during silence, so the next word keeps its onset
 
-TRANSCRIBER = Transcriber.new(BREEZE)
-DETECTOR = SentenceDetector.new(SILERO, RATE)
+TRANSCRIBER = Transcriber.new
+DETECTOR = SentenceDetector.new
 BAR = SubtitleBar.new
-MIC = Microphone.new(RATE)
+MIC = Microphone.new
 
 # AudioQueue can only call a top-level method.
 def on_audio(_user, queue, buffer, _time, _packets, _descriptions) # rubocop:disable Metrics/ParameterLists

@@ -24,15 +24,15 @@ class Transcriber
     attach_function :text_at,    :whisper_full_get_segment_text, %i[ptr int], :str
   end
 
-  SAMPLE_BYTES = 4
+  MODEL = 'vendor/models/ggml-breeze-asr-25-q5_0.bin'
 
-  def initialize(model)
+  def initialize
     Whisper.whisper_log_set(method(:silent_log), nil)
-    @whisper = Whisper.load_model(model)
+    @whisper = Whisper.load_model(MODEL)
   end
 
   def text_of(audio)
-    Whisper.transcribe(@whisper, audio, audio.size / SAMPLE_BYTES)
+    Whisper.transcribe(@whisper, audio, audio.size / Microphone::SAMPLE_BYTES)
     Whisper.count(@whisper).zero? ? '' : Whisper.text_at(@whisper, 0).strip
   end
 end

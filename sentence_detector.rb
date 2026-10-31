@@ -15,15 +15,15 @@ class SentenceDetector
     attach_function :free,       :whisper_vad_free_segments, [:ptr], :void
   end
 
+  MODEL = 'vendor/models/ggml-silero-v6.2.0.bin'
   SILENCE_MS = 250 # this much silence ends a sentence
   MAX_SPEECH_S = 8.0 # one subtitle line holds about this much speech
   CENTISECONDS = 100 # VAD reports time in hundredths of a second
 
   attr_reader :from, :to
 
-  def initialize(model, rate)
-    @vad = Vad.load_model(model)
-    @rate = rate
+  def initialize
+    @vad = Vad.load_model(MODEL)
     @from = 0
     @to = 0
     @count = 0
@@ -43,9 +43,9 @@ class SentenceDetector
   def speech? = @count.positive?
 
   # A sentence is over once silence follows it or the next one has begun.
-  def sentence_over?(mic) = speech? && (@count > 1 || mic.heard - @to >= @rate * SILENCE_MS / 1000)
+  def sentence_over?(mic) = speech? && (@count > 1 || mic.heard - @to >= Microphone::RATE * SILENCE_MS / 1000)
 
   private
 
-  def samples_at(time) = (time * @rate / CENTISECONDS).to_i
+  def samples_at(time) = (time * Microphone::RATE / CENTISECONDS).to_i
 end

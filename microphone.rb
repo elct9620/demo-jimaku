@@ -23,19 +23,20 @@ class Microphone
     ffi_read_u32 :audio_size, 16
   end
 
+  RATE = 16_000
   SAMPLE_BYTES = 4
   KEPT_SECONDS = 60
   QUEUED_BUFFERS = 40 # together they hold 2 seconds, longer than a transcription blocks the run loop
-  BUFFER_SECONDS = 0.05
+  BUFFER_BYTES = RATE / 20 * SAMPLE_BYTES # 50 milliseconds of audio
   LINEAR_PCM = 0x6C70636D
   PACKED_FLOAT = 9
 
   attr_reader :heard, :samples
 
-  def initialize(rate)
-    @samples = IO::Buffer.new(rate * KEPT_SECONDS * SAMPLE_BYTES)
+  def initialize
+    @samples = IO::Buffer.new(RATE * KEPT_SECONDS * SAMPLE_BYTES)
     @heard = 0
-    start_queue(rate)
+    start_queue
   end
 
   def listen = AudioQueue.run_forever
@@ -56,27 +57,27 @@ class Microphone
 
   private
 
-  def start_queue(rate)
-    queue = new_queue(rate)
-    QUEUED_BUFFERS.times { enqueue_new_buffer(queue, (rate * BUFFER_SECONDS).to_i * SAMPLE_BYTES) }
+  def start_queue
+    queue = new_queue
+    QUEUED_BUFFERS.times { enqueue_new_buffer(queue) }
     AudioQueue.start(queue, nil)
   end
 
-  def new_queue(rate)
+  def new_queue
     run_loop = AudioQueue.current_run_loop
-    AudioQueue.AudioQueueNewInput(format(rate), method(:on_audio), nil, run_loop, nil, 0, AudioQueue.out)
+    AudioQueue.AudioQueueNewInput(format, method(:on_audio), nil, run_loop, nil, 0, AudioQueue.out)
     AudioQueue.out_pointer(AudioQueue.out)
   end
 
-  def enqueue_new_buffer(queue, bytes)
-    AudioQueue.allocate(queue, bytes, AudioQueue.out)
+  def enqueue_new_buffer(queue)
+    AudioQueue.allocate(queue, BUFFER_BYTES, AudioQueue.out)
     AudioQueue.enqueue(queue, AudioQueue.out_pointer(AudioQueue.out), 0, nil)
   end
 
-  # AudioStreamBasicDescription: mono 32-bit float at the given rate.
-  def format(rate)
+  # AudioStreamBasicDescription: mono 32-bit float.
+  def format
     description = IO::Buffer.new(40)
-    description.set_value(:f64, 0, rate.to_f)
+    description.set_value(:f64, 0, RATE.to_f)
     [LINEAR_PCM, PACKED_FLOAT, SAMPLE_BYTES, 1, SAMPLE_BYTES, 1, SAMPLE_BYTES * 8, 0].each_with_index do |field, i|
       description.set_value(:u32, 8 + (i * SAMPLE_BYTES), field)
     end
