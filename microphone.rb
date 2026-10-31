@@ -78,9 +78,8 @@ class Microphone
   def format
     description = IO::Buffer.new(40)
     description.set_value(:f64, 0, RATE.to_f)
-    [LINEAR_PCM, PACKED_FLOAT, SAMPLE_BYTES, 1, SAMPLE_BYTES, 1, SAMPLE_BYTES * 8, 0].each_with_index do |field, i|
-      description.set_value(:u32, 8 + (i * SAMPLE_BYTES), field)
-    end
+    fields = [LINEAR_PCM, PACKED_FLOAT, SAMPLE_BYTES, 1, SAMPLE_BYTES, 1, SAMPLE_BYTES * 8, 0]
+    description.set_values([:u32] * fields.size, 8, fields)
     description
   end
 end
