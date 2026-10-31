@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'microphone'
+
 # Replaces whisper.cpp's logging so the terminal shows only captions.
 def silent_log(_level, _text, _data); end
 

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'microphone'
+
 # Silero VAD over everything heard so far: where does the first sentence start and end?
 class SentenceDetector
   # whisper.cpp voice activity detection.
