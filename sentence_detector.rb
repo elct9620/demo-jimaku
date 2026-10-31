@@ -42,8 +42,8 @@ class SentenceDetector
 
   def speech? = @count.positive?
 
-  # A sentence is over once silence follows it or the next one has begun.
-  def sentence_over?(mic) = speech? && (@count > 1 || mic.heard - @to >= Microphone::RATE * SILENCE_MS / 1000)
+  # A sentence is over once it ended at least SILENCE_MS ago.
+  def sentence_over?(mic) = speech? && mic.heard - @to >= Microphone::RATE * SILENCE_MS / 1000
 
   private
 
