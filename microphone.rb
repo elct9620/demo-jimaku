@@ -29,8 +29,8 @@ class Microphone
 
   SAMPLE_BYTES = 4
   KEPT_SECONDS = 60
-  QUEUED_BUFFERS = 10 # together they hold 2 seconds, longer than a transcription blocks the run loop
-  BUFFER_SECONDS = 0.2
+  QUEUED_BUFFERS = 40 # together they hold 2 seconds, longer than a transcription blocks the run loop
+  BUFFER_SECONDS = 0.05
   LINEAR_PCM = 0x6C70636D
   PACKED_FLOAT = 9
 

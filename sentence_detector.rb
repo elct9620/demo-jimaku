@@ -15,7 +15,7 @@ class SentenceDetector
     attach_function :free,       :whisper_vad_free_segments, [:ptr], :void
   end
 
-  SILENCE_MS = 300 # this much silence ends a sentence
+  SILENCE_MS = 250 # this much silence ends a sentence
   MAX_SPEECH_S = 8.0 # one subtitle line holds about this much speech
   CENTISECONDS = 100 # VAD reports time in hundredths of a second
 

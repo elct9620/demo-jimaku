@@ -22,7 +22,7 @@ class Jimaku
   UTF8 = 0x08000100
 
   RATE = 16_000
-  TICK = 0.2 # seconds between checks
+  TICK = 0.05 # seconds between checks
   TAIL = RATE / 2 # kept during silence, so the next word keeps its onset
 
   def initialize
