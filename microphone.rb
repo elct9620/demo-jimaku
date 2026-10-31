@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+# AudioQueue can only call a top-level method.
+def on_audio(_user, queue, buffer, _time, _packets, _descriptions) # rubocop:disable Metrics/ParameterLists
+  Microphone.current.receive(queue, buffer)
+end
+
 # What the microphone has heard so far, as contiguous 32-bit floats whisper can read.
 class Microphone
   # macOS calls back on the run loop we name, so the audio callback can be plain Ruby.
@@ -33,16 +38,22 @@ class Microphone
   PACKED_FLOAT = 9
   SIGINT = 2
 
+  class << self
+    attr_accessor :current
+  end
+
   attr_reader :heard, :samples
 
   def initialize
     @samples = IO::Buffer.new(RATE * KEPT_SECONDS * SAMPLE_BYTES)
     @heard = 0
-    start_queue
   end
 
-  # Ruby handles Ctrl+C at a safe point, which the run loop never reaches, so the system's default takes over.
-  def listen
+  def listen(&on_heard)
+    Microphone.current = self
+    @on_heard = on_heard
+    start_queue
+    # Ruby handles Ctrl+C at a safe point, which the run loop never reaches, so the system's default takes over.
     AudioQueue.signal(SIGINT, nil)
     AudioQueue.run_forever
   end
@@ -59,6 +70,7 @@ class Microphone
     AudioQueue.memcpy(between(@heard, @heard + frames), AudioQueue.audio_data(buffer), frames * SAMPLE_BYTES)
     @heard += frames
     AudioQueue.enqueue(queue, buffer, 0, nil)
+    @on_heard.call
   end
 
   private
