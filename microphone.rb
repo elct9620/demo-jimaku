@@ -16,6 +16,7 @@ class Microphone
     attach_function :current_run_loop, :CFRunLoopGetCurrent, [], :ptr
     attach_function :run_forever, :CFRunLoopRun, [], :void
     attach_function :memcpy, %i[ptr ptr size_t], :ptr
+    ffi_func :signal, %i[int ptr], :ptr
 
     ffi_buffer   :out, 8
     ffi_read_ptr :out_pointer, 0
@@ -30,6 +31,7 @@ class Microphone
   BUFFER_BYTES = RATE / 20 * SAMPLE_BYTES # 50 milliseconds of audio
   LINEAR_PCM = 0x6C70636D
   PACKED_FLOAT = 9
+  SIGINT = 2
 
   attr_reader :heard, :samples
 
@@ -39,7 +41,11 @@ class Microphone
     start_queue
   end
 
-  def listen = AudioQueue.run_forever
+  # Ruby handles Ctrl+C at a safe point, which the run loop never reaches, so the system's default takes over.
+  def listen
+    AudioQueue.signal(SIGINT, nil)
+    AudioQueue.run_forever
+  end
 
   def between(from, to) = @samples.slice(from * SAMPLE_BYTES, (to - from) * SAMPLE_BYTES)
 
