@@ -16,5 +16,6 @@ void transcribe(void *whisper, void *samples, int n) {
   struct whisper_full_params p = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
   p.language = "zh";
   p.print_progress = false;
+  p.single_segment = true;
   whisper_full(whisper, p, samples, n);
 }

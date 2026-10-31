@@ -26,8 +26,6 @@ class Transcriber
 
   def text_of(audio)
     Whisper.transcribe(@whisper, audio, audio.size / SAMPLE_BYTES)
-    text = +''
-    Whisper.count(@whisper).times { |i| text += Whisper.text_at(@whisper, i) }
-    text.strip
+    Whisper.count(@whisper).zero? ? '' : Whisper.text_at(@whisper, 0).strip
   end
 end

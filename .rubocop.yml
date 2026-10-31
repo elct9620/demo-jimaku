@@ -9,7 +9,3 @@ AllCops:
 
 Style/Documentation:
   Enabled: false
-
-# Objective-C message chains count high while reading as plain sequences.
-Metrics/AbcSize:
-  Max: 20

@@ -4,21 +4,14 @@
 WHISPER_VERSION = 'v1.9.4' # the version the Breeze model was converted with
 WHISPER_SRC = 'vendor/whisper.cpp'
 WHISPER_DIR = File.expand_path('vendor/whisper')
-MINIAUDIO_VERSION = '0.11.26'
-MINIAUDIO_HEADER = 'vendor/miniaudio/miniaudio.h'
 
 MODELS = {
   'tsuzuri-app/Breeze-ASR-25-ggml' => 'ggml-breeze-asr-25-q5_0.bin',
   'ggml-org/whisper-vad' => 'ggml-silero-v6.2.0.bin'
 }.freeze
 
-desc 'Install whisper.cpp and miniaudio into vendor/, and fetch the models'
-task default: ["#{WHISPER_DIR}/lib/libwhisper.a", MINIAUDIO_HEADER, :models]
-
-file MINIAUDIO_HEADER do
-  mkdir_p File.dirname(MINIAUDIO_HEADER)
-  sh "curl -fsSL -o #{MINIAUDIO_HEADER} https://raw.githubusercontent.com/mackron/miniaudio/#{MINIAUDIO_VERSION}/miniaudio.h"
-end
+desc 'Install whisper.cpp into vendor/ and fetch the models'
+task default: ["#{WHISPER_DIR}/lib/libwhisper.a", :models]
 
 file WHISPER_SRC do
   sh "git clone --depth 1 --branch #{WHISPER_VERSION} https://github.com/ggml-org/whisper.cpp.git #{WHISPER_SRC}"
@@ -32,7 +25,10 @@ file "#{WHISPER_DIR}/lib/libwhisper.a" => WHISPER_SRC do
   sh "cmake --install #{WHISPER_SRC}/build"
 end
 
-desc 'Fetch the models into the Hugging Face cache'
+desc 'Fetch the models into the Hugging Face cache and link them under vendor/models'
 task :models do
-  MODELS.each { |repo, file| sh "hf download #{repo} #{file}" }
+  mkdir_p 'vendor/models'
+  MODELS.each do |repo, name|
+    ln_sf `hf download #{repo} #{name}`.lines.last.strip, "vendor/models/#{name}"
+  end
 end

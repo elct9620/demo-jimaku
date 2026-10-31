@@ -7,26 +7,35 @@ require_relative 'subtitle_bar'
 require_relative 'transcriber'
 
 class Jimaku
-  HF_HUB = "#{Dir.home}/.cache/huggingface/hub".freeze
-  BREEZE = 'models--tsuzuri-app--Breeze-ASR-25-ggml/snapshots/d8ec322b4a34e92c380e4186d4e0f238eebe7ba7'
-  SILERO = 'models--ggml-org--whisper-vad/snapshots/9ffd54a1e1ee413ddf265af9913beaf518d1639b'
+  # The main thread's run loop does all the waiting: it delivers audio and redraws the window.
+  module RunLoop
+    extend FFI::Library
+
+    ffi_cflags '-framework CoreFoundation'
+
+    attach_function :run_in_mode, :CFRunLoopRunInMode, %i[ptr double long], :int
+    attach_function :cfstring, :CFStringCreateWithCString, %i[ptr str uint32], :ptr
+  end
+
+  BREEZE = 'vendor/models/ggml-breeze-asr-25-q5_0.bin'
+  SILERO = 'vendor/models/ggml-silero-v6.2.0.bin'
+  UTF8 = 0x08000100
 
   RATE = 16_000
   TICK = 0.2 # seconds between checks
   TAIL = RATE / 2 # kept during silence, so the next word keeps its onset
 
   def initialize
-    @transcriber = Transcriber.new("#{HF_HUB}/#{BREEZE}/ggml-breeze-asr-25-q5_0.bin")
-    @detector = SentenceDetector.new("#{HF_HUB}/#{SILERO}/ggml-silero-v6.2.0.bin", RATE)
+    @transcriber = Transcriber.new(BREEZE)
+    @detector = SentenceDetector.new(SILERO, RATE)
     @bar = SubtitleBar.new
     @mic = Microphone.new(RATE)
+    @mode = RunLoop.cfstring(nil, 'kCFRunLoopDefaultMode', UTF8)
   end
 
   def run
     loop do
-      @bar.pump
-      sleep TICK
-      @mic.listen
+      RunLoop.run_in_mode(@mode, TICK, 0)
       tick if @mic.heard >= TAIL
     end
   end
