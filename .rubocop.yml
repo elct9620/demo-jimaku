@@ -1,0 +1,15 @@
+AllCops:
+  NewCops: enable
+  SuggestExtensions: false
+  TargetRubyVersion: 3.4
+  Exclude:
+    - build/**/*
+    - tmp/**/*
+    - vendor/**/*
+
+Style/Documentation:
+  Enabled: false
+
+# Objective-C message chains count high while reading as plain sequences.
+Metrics/AbcSize:
+  Max: 20

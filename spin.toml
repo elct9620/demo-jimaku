@@ -1,0 +1,3 @@
+[package]
+name = "jimaku"
+sources = ["*.c"]
