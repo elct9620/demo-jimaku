@@ -65,7 +65,7 @@ class Microphone
 
   def new_queue
     run_loop = AudioQueue.current_run_loop
-    AudioQueue.AudioQueueNewInput(format, method(:on_audio), nil, run_loop, nil, 0, AudioQueue.out)
+    AudioQueue.AudioQueueNewInput(audio_format, method(:on_audio), nil, run_loop, nil, 0, AudioQueue.out)
     AudioQueue.out_pointer(AudioQueue.out)
   end
 
@@ -75,7 +75,7 @@ class Microphone
   end
 
   # AudioStreamBasicDescription: mono 32-bit float.
-  def format
+  def audio_format
     description = IO::Buffer.new(40)
     description.set_value(:f64, 0, RATE.to_f)
     fields = [LINEAR_PCM, PACKED_FLOAT, SAMPLE_BYTES, 1, SAMPLE_BYTES, 1, SAMPLE_BYTES * 8, 0]

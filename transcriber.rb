@@ -18,10 +18,10 @@ class Transcriber
 
     ffi_callback :logger, %i[int ptr ptr], :void
     ffi_func :whisper_log_set, %i[logger ptr], :void
-    attach_function :load_model, :whisper_init_from_file, [:str], :ptr
-    attach_function :transcribe, %i[ptr ptr int], :void
-    attach_function :count,      :whisper_full_n_segments,       [:ptr], :int
-    attach_function :text_at,    :whisper_full_get_segment_text, %i[ptr int], :str
+    attach_function :load_model,    :whisper_init_from_file, [:str], :ptr
+    attach_function :transcribe,    %i[ptr ptr int], :void
+    attach_function :segment_count, :whisper_full_n_segments,       [:ptr], :int
+    attach_function :text_at,       :whisper_full_get_segment_text, %i[ptr int], :str
   end
 
   MODEL = 'vendor/models/ggml-breeze-asr-25-q5_0.bin'
@@ -33,6 +33,6 @@ class Transcriber
 
   def text_of(audio)
     Whisper.transcribe(@whisper, audio, audio.size / Microphone::SAMPLE_BYTES)
-    Whisper.count(@whisper).zero? ? '' : Whisper.text_at(@whisper, 0).strip
+    Whisper.segment_count(@whisper).zero? ? '' : Whisper.text_at(@whisper, 0).strip
   end
 end
