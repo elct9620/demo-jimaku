@@ -4,7 +4,8 @@ require 'microphone'
 
 # Silero VAD over everything heard so far: where does the first sentence start and end?
 class SentenceDetector
-  # whisper.cpp voice activity detection.
+  # whisper.cpp voice activity detection. speech.c covers the calls that take a struct by value,
+  # and Transcriber::Whisper links the library.
   module Vad
     extend FFI::Library
 
