@@ -56,15 +56,21 @@ class Microphone
 
   private
 
-  def start_queue(rate) # rubocop:disable Metrics/AbcSize
+  def start_queue(rate)
+    queue = new_queue(rate)
+    QUEUED_BUFFERS.times { enqueue_new_buffer(queue, (rate * BUFFER_SECONDS).to_i * SAMPLE_BYTES) }
+    AudioQueue.start(queue, nil)
+  end
+
+  def new_queue(rate)
     run_loop = AudioQueue.current_run_loop
     AudioQueue.AudioQueueNewInput(format(rate), method(:on_audio), nil, run_loop, nil, 0, AudioQueue.out)
-    queue = AudioQueue.out_pointer(AudioQueue.out)
-    QUEUED_BUFFERS.times do
-      AudioQueue.allocate(queue, (rate * BUFFER_SECONDS).to_i * SAMPLE_BYTES, AudioQueue.out)
-      AudioQueue.enqueue(queue, AudioQueue.out_pointer(AudioQueue.out), 0, nil)
-    end
-    AudioQueue.start(queue, nil)
+    AudioQueue.out_pointer(AudioQueue.out)
+  end
+
+  def enqueue_new_buffer(queue, bytes)
+    AudioQueue.allocate(queue, bytes, AudioQueue.out)
+    AudioQueue.enqueue(queue, AudioQueue.out_pointer(AudioQueue.out), 0, nil)
   end
 
   # AudioStreamBasicDescription: mono 32-bit float at the given rate.
