@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'hugging_face_cache'
 require 'microphone'
 
 # Silero VAD over everything heard so far: where does the first sentence start and end?
@@ -18,7 +19,8 @@ class SentenceDetector
     attach_function :free,          :whisper_vad_free_segments, [:ptr], :void
   end
 
-  MODEL = 'vendor/models/ggml-silero-v6.2.0.bin'
+  MODEL_REPO = 'ggml-org/whisper-vad'
+  MODEL_FILE = 'ggml-silero-v6.2.0.bin'
   SILENCE_MS = 250 # this much silence ends a sentence
   MAX_SPEECH_S = 8.0 # one subtitle line holds about this much speech
   SAMPLES_PER_CENTISECOND = Microphone::RATE / 100 # VAD reports time in hundredths of a second
@@ -26,7 +28,7 @@ class SentenceDetector
   attr_reader :from, :to
 
   def initialize
-    @vad = Vad.load_model(MODEL)
+    @vad = Vad.load_model(HuggingFaceCache.path_of(MODEL_REPO, MODEL_FILE))
     @from = 0
     @to = 0
     @count = 0

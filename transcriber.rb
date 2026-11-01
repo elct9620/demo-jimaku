@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'hugging_face_cache'
 require 'microphone'
 
 # Replaces whisper.cpp's logging so the terminal shows only captions.
@@ -26,11 +27,12 @@ class Transcriber
     attach_function :text_at,       :whisper_full_get_segment_text, %i[ptr int], :str
   end
 
-  MODEL = 'vendor/models/ggml-breeze-asr-25-q5_0.bin'
+  MODEL_REPO = 'tsuzuri-app/Breeze-ASR-25-ggml'
+  MODEL_FILE = 'ggml-breeze-asr-25-q5_0.bin'
 
   def initialize
     Whisper.whisper_log_set(method(:silent_log), nil)
-    @whisper = Whisper.load_model(MODEL)
+    @whisper = Whisper.load_model(HuggingFaceCache.path_of(MODEL_REPO, MODEL_FILE))
   end
 
   def text_of(audio)

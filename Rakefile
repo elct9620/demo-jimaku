@@ -25,10 +25,7 @@ file "#{WHISPER_DIR}/lib/libwhisper.a" => WHISPER_SRC do
   sh "cmake --install #{WHISPER_SRC}/build"
 end
 
-desc 'Fetch the models into the Hugging Face cache and link them under vendor/models'
+desc 'Fetch the models into the Hugging Face cache'
 task :models do
-  mkdir_p 'vendor/models'
-  MODELS.each do |repo, name|
-    ln_sf `hf download #{repo} #{name}`.lines.last.strip, "vendor/models/#{name}"
-  end
+  MODELS.each { |repo, name| sh "hf download #{repo} #{name}" }
 end
