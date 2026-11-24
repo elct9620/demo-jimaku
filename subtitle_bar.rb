@@ -47,6 +47,7 @@ class SubtitleBar
   BUFFERED = 2
   ABOVE_NORMAL_WINDOWS = 25
   CENTERED = 1
+  REGULAR = 0.0
 
   def initialize
     ObjC::Send.objc_msgSend(cls('NSApplication'), sel('sharedApplication'))
@@ -84,7 +85,7 @@ class SubtitleBar
     label
   end
 
-  def system_font = ObjC::SendDoubles.objc_msgSend(cls('NSFont'), sel('systemFontOfSize:'), FONT_SIZE, 0.0)
+  def system_font = ObjC::SendDoubles.objc_msgSend(cls('NSFont'), sel('systemFontOfSize:weight:'), FONT_SIZE, REGULAR)
   def cls(name) = ObjC.objc_getClass(name)
   def sel(name) = ObjC.sel_registerName(name)
   def color(white, alpha) = ObjC::SendDoubles.objc_msgSend(cls('NSColor'), sel('colorWithWhite:alpha:'), white, alpha)
