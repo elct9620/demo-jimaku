@@ -89,7 +89,7 @@ FFI 無法傳遞的 C 形狀（以傳值方式傳遞的結構、out 參數、巨
 
 | C 檔 | 包裝的形狀 |
 |------|------------|
-| `audio_toolbox.c` | 音訊格式結構、新 queue 與 buffer 的 out 參數、buffer 的欄位 |
+| `audio_toolbox.c` | 音訊格式結構、新 queue 與 buffer 的 out 參數、buffer 的欄位、六個參數的回呼 |
 | `core_foundation.c` | 執行 run loop 前，把 Ctrl+C 交還系統預設處理 |
 | `objc.c` | 以傳值方式傳遞矩形的訊息 |
 | `whisper.c` | whisper.cpp 的參數結構 |

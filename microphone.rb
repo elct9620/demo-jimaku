@@ -1,19 +1,17 @@
 # frozen_string_literal: true
 
-# AudioQueue can only call a top-level method.
-def on_audio(_user, queue, buffer, _time, _packets, _descriptions) # rubocop:disable Metrics/ParameterLists
-  Microphone.current.receive(queue, buffer)
-end
+# A C callback can only call a top-level method.
+def on_audio(buffer) = Microphone.current.receive(buffer)
 
-# AudioQueue records into buffers it hands back on a run loop; audio_toolbox.c fills in its structs.
+# AudioQueue records into buffers it hands back on a run loop; audio_toolbox.c fills in its structs
+# and returns each buffer to the queue once Ruby has read it.
 module AudioToolbox
   ffi_cflags '-framework AudioToolbox'
 
-  ffi_callback :on_audio, %i[ptr ptr ptr ptr uint32 ptr], :void
+  ffi_callback :on_audio, %i[ptr], :void
   ffi_func :audio_queue_open, %i[on_audio double], :ptr
-  ffi_func :audio_queue_new_buffer, %i[ptr uint32], :ptr
+  ffi_func :audio_queue_add_buffer, %i[ptr uint32], :void
   ffi_func :audio_queue_buffer_copy, %i[ptr ptr], :uint32
-  ffi_func :AudioQueueEnqueueBuffer, %i[ptr ptr uint32 ptr], :int
   ffi_func :AudioQueueStart, %i[ptr ptr], :int
 end
 
@@ -56,10 +54,9 @@ class Microphone
     @heard -= count
   end
 
-  def receive(queue, buffer)
+  def receive(buffer)
     room = between(@heard, @heard + (BUFFER_BYTES / SAMPLE_BYTES))
     @heard += AudioToolbox.audio_queue_buffer_copy(buffer, room) / SAMPLE_BYTES
-    AudioToolbox.AudioQueueEnqueueBuffer(queue, buffer, 0, nil)
     @on_heard.call
   end
 
@@ -67,11 +64,7 @@ class Microphone
 
   def start_queue
     queue = AudioToolbox.audio_queue_open(method(:on_audio), RATE.to_f)
-    QUEUED_BUFFERS.times { enqueue_new_buffer(queue) }
+    QUEUED_BUFFERS.times { AudioToolbox.audio_queue_add_buffer(queue, BUFFER_BYTES) }
     AudioToolbox.AudioQueueStart(queue, nil)
-  end
-
-  def enqueue_new_buffer(queue)
-    AudioToolbox.AudioQueueEnqueueBuffer(queue, AudioToolbox.audio_queue_new_buffer(queue, BUFFER_BYTES), 0, nil)
   end
 end
