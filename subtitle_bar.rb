@@ -11,25 +11,11 @@ module ObjC
   ffi_func :msg_send_rect, %i[ptr ptr double double double double], :void
   ffi_func :msg_send_content_rect, %i[ptr ptr double double double double long long bool], :ptr
 
-  module Send
-    ffi_func :objc_msgSend, %i[ptr ptr], :ptr
-  end
-
-  module SendId
-    ffi_func :objc_msgSend, %i[ptr ptr ptr], :ptr
-  end
-
-  module SendCString
-    ffi_func :objc_msgSend, %i[ptr ptr str], :ptr
-  end
-
-  module SendLong
-    ffi_func :objc_msgSend, %i[ptr ptr long], :ptr
-  end
-
-  module SendDoubles
-    ffi_func :objc_msgSend, %i[ptr ptr double double], :ptr
-  end
+  module Send;        ffi_func :objc_msgSend, %i[ptr ptr], :ptr;               end
+  module SendId;      ffi_func :objc_msgSend, %i[ptr ptr ptr], :ptr;           end
+  module SendCString; ffi_func :objc_msgSend, %i[ptr ptr str], :ptr;           end
+  module SendLong;    ffi_func :objc_msgSend, %i[ptr ptr long], :ptr;          end
+  module SendDoubles; ffi_func :objc_msgSend, %i[ptr ptr double double], :ptr; end
 end
 
 module CoreGraphics
