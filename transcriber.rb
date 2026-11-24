@@ -2,41 +2,25 @@
 
 require 'hugging_face_cache'
 require 'microphone'
+require 'whisper'
 
 # Replaces whisper.cpp's logging so the terminal shows only captions.
 def silent_log(_level, _text, _data); end
 
 # Breeze ASR through whisper.cpp: audio in, one line of text out.
 class Transcriber
-  # whisper.cpp speech recognition. speech.c covers the calls that take a struct by value.
-  module Whisper
-    extend FFI::Library
-
-    ffi_lib 'c++'
-    ffi_lib 'objc'
-    ffi_cflags '-Lvendor/whisper/lib -lwhisper -lggml -lggml-metal -lggml-blas -lggml-cpu -lggml-base'
-    ffi_cflags '-framework Accelerate -framework Foundation -framework Metal -framework MetalKit'
-    # Spin links against an older SDK than whisper.cpp was built with; ggml guards this class with @available.
-    ffi_cflags "-Wl,-U,'_OBJC_CLASS_$_MTLResidencySetDescriptor'"
-
-    ffi_callback :logger, %i[int ptr ptr], :void
-    ffi_func :whisper_log_set, %i[logger ptr], :void
-    attach_function :load_model,    :whisper_init_from_file, [:str], :ptr
-    attach_function :transcribe,    %i[ptr ptr int], :void
-    attach_function :segment_count, :whisper_full_n_segments,       [:ptr], :int
-    attach_function :text_at,       :whisper_full_get_segment_text, %i[ptr int], :str
-  end
-
   MODEL_REPO = 'tsuzuri-app/Breeze-ASR-25-ggml'
   MODEL_FILE = 'ggml-breeze-asr-25-q5_0.bin'
 
   def initialize
     Whisper.whisper_log_set(method(:silent_log), nil)
-    @whisper = Whisper.load_model(HuggingFaceCache.path_of(MODEL_REPO, MODEL_FILE))
+    @whisper = Whisper.whisper_init_from_file(HuggingFaceCache.path_of(MODEL_REPO, MODEL_FILE))
   end
 
   def text_of(audio)
     Whisper.transcribe(@whisper, audio, audio.size / Microphone::SAMPLE_BYTES)
-    Whisper.segment_count(@whisper).zero? ? '' : Whisper.text_at(@whisper, 0).strip
+    return '' if Whisper.whisper_full_n_segments(@whisper).zero?
+
+    Whisper.whisper_full_get_segment_text(@whisper, 0).strip
   end
 end

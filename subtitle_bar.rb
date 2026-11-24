@@ -1,28 +1,44 @@
 # frozen_string_literal: true
 
-# A borderless window along the bottom of the screen, built by sending Objective-C messages.
-class SubtitleBar
-  # Objective-C has one entry point, objc_msgSend, declared once per message shape.
-  module AppKit
-    extend FFI::Library
+# Objective-C has one entry point, objc_msgSend, declared once per message shape.
+module ObjC
+  ffi_lib 'objc'
+  ffi_cflags '-framework AppKit'
 
-    ffi_lib 'objc'
-    ffi_cflags '-framework AppKit'
+  ffi_func :objc_getClass, [:str], :ptr
+  ffi_func :sel_registerName, [:str], :ptr
+  # A rectangle travels by value, which objc.c builds.
+  ffi_func :msg_send_rect, %i[ptr ptr double double double double], :void
+  ffi_func :msg_send_content_rect, %i[ptr ptr double double double double long long bool], :ptr
 
-    attach_function :objc_getClass,    [:str], :ptr
-    attach_function :sel_registerName, [:str], :ptr
-    attach_function :msg,        :objc_msgSend, %i[ptr ptr], :ptr
-    attach_function :msg_object, :objc_msgSend, %i[ptr ptr ptr], :ptr
-    attach_function :msg_string, :objc_msgSend, %i[ptr ptr str], :ptr
-    attach_function :msg_int,    :objc_msgSend, %i[ptr ptr long], :ptr
-    attach_function :msg_floats, :objc_msgSend, %i[ptr ptr double double], :ptr
-    # On Apple Silicon an NSRect travels as four doubles.
-    attach_function :msg_frame,      :objc_msgSend, %i[ptr ptr double double double double], :ptr
-    attach_function :msg_new_window, :objc_msgSend, %i[ptr ptr double double double double long long long], :ptr
-    attach_function :main_display,  :CGMainDisplayID,     [], :uint32
-    attach_function :display_width, :CGDisplayPixelsWide, [:uint32], :size_t
+  module Send
+    ffi_func :objc_msgSend, %i[ptr ptr], :ptr
   end
 
+  module SendId
+    ffi_func :objc_msgSend, %i[ptr ptr ptr], :ptr
+  end
+
+  module SendCString
+    ffi_func :objc_msgSend, %i[ptr ptr str], :ptr
+  end
+
+  module SendLong
+    ffi_func :objc_msgSend, %i[ptr ptr long], :ptr
+  end
+
+  module SendDoubles
+    ffi_func :objc_msgSend, %i[ptr ptr double double], :ptr
+  end
+end
+
+module CoreGraphics
+  ffi_func :CGMainDisplayID, [], :uint32
+  ffi_func :CGDisplayPixelsWide, [:uint32], :size_t
+end
+
+# A borderless window along the bottom of the screen, built by sending Objective-C messages.
+class SubtitleBar
   HEIGHT = 120.0
   FONT_SIZE = 44.0
   LINE_HEIGHT = 54.0
@@ -33,44 +49,44 @@ class SubtitleBar
   CENTERED = 1
 
   def initialize
-    AppKit.msg(cls('NSApplication'), sel('sharedApplication'))
-    width = AppKit.display_width(AppKit.main_display).to_f
+    ObjC::Send.objc_msgSend(cls('NSApplication'), sel('sharedApplication'))
+    width = CoreGraphics.CGDisplayPixelsWide(CoreGraphics.CGMainDisplayID).to_f
     window = new_window(width)
     @label = new_label(width)
-    AppKit.msg_object(AppKit.msg(window, sel('contentView')), sel('addSubview:'), @label)
-    AppKit.msg(window, sel('orderFrontRegardless'))
+    ObjC::SendId.objc_msgSend(ObjC::Send.objc_msgSend(window, sel('contentView')), sel('addSubview:'), @label)
+    ObjC::Send.objc_msgSend(window, sel('orderFrontRegardless'))
   end
 
   def show(text)
-    AppKit.msg_object(@label, sel('setStringValue:'), nsstring(text))
+    ObjC::SendId.objc_msgSend(@label, sel('setStringValue:'), nsstring(text))
   end
 
   private
 
   def new_window(width)
-    window = AppKit.msg_new_window(AppKit.msg(cls('NSWindow'), sel('alloc')),
-                                   sel('initWithContentRect:styleMask:backing:defer:'),
-                                   0.0, 0.0, width, HEIGHT, BORDERLESS, BUFFERED, 0)
-    AppKit.msg_int(window, sel('setOpaque:'), 0)
-    AppKit.msg_object(window, sel('setBackgroundColor:'), color(0.0, 0.7))
-    AppKit.msg_int(window, sel('setLevel:'), ABOVE_NORMAL_WINDOWS)
-    AppKit.msg_int(window, sel('setIgnoresMouseEvents:'), 1)
+    window = ObjC.msg_send_content_rect(ObjC::Send.objc_msgSend(cls('NSWindow'), sel('alloc')),
+                                        sel('initWithContentRect:styleMask:backing:defer:'),
+                                        0.0, 0.0, width, HEIGHT, BORDERLESS, BUFFERED, false)
+    ObjC::SendLong.objc_msgSend(window, sel('setOpaque:'), 0)
+    ObjC::SendId.objc_msgSend(window, sel('setBackgroundColor:'), color(0.0, 0.7))
+    ObjC::SendLong.objc_msgSend(window, sel('setLevel:'), ABOVE_NORMAL_WINDOWS)
+    ObjC::SendLong.objc_msgSend(window, sel('setIgnoresMouseEvents:'), 1)
     window
   end
 
   def new_label(width) # rubocop:disable Metrics/AbcSize
-    label = AppKit.msg_object(cls('NSTextField'), sel('labelWithString:'), nsstring(''))
-    AppKit.msg_object(label, sel('setFont:'), system_font)
-    AppKit.msg_object(label, sel('setTextColor:'), color(1.0, 1.0))
-    AppKit.msg_int(label, sel('setAlignment:'), CENTERED)
-    AppKit.msg_frame(label, sel('setFrame:'), SIDE_MARGIN, (HEIGHT - LINE_HEIGHT) / 2,
-                     width - (SIDE_MARGIN * 2), LINE_HEIGHT)
+    label = ObjC::SendId.objc_msgSend(cls('NSTextField'), sel('labelWithString:'), nsstring(''))
+    ObjC::SendId.objc_msgSend(label, sel('setFont:'), system_font)
+    ObjC::SendId.objc_msgSend(label, sel('setTextColor:'), color(1.0, 1.0))
+    ObjC::SendLong.objc_msgSend(label, sel('setAlignment:'), CENTERED)
+    ObjC.msg_send_rect(label, sel('setFrame:'), SIDE_MARGIN, (HEIGHT - LINE_HEIGHT) / 2,
+                       width - (SIDE_MARGIN * 2), LINE_HEIGHT)
     label
   end
 
-  def system_font = AppKit.msg_floats(cls('NSFont'), sel('systemFontOfSize:'), FONT_SIZE, 0.0)
-  def cls(name) = AppKit.objc_getClass(name)
-  def sel(name) = AppKit.sel_registerName(name)
-  def color(white, alpha) = AppKit.msg_floats(cls('NSColor'), sel('colorWithWhite:alpha:'), white, alpha)
-  def nsstring(text) = AppKit.msg_string(cls('NSString'), sel('stringWithUTF8String:'), text)
+  def system_font = ObjC::SendDoubles.objc_msgSend(cls('NSFont'), sel('systemFontOfSize:'), FONT_SIZE, 0.0)
+  def cls(name) = ObjC.objc_getClass(name)
+  def sel(name) = ObjC.sel_registerName(name)
+  def color(white, alpha) = ObjC::SendDoubles.objc_msgSend(cls('NSColor'), sel('colorWithWhite:alpha:'), white, alpha)
+  def nsstring(text) = ObjC::SendCString.objc_msgSend(cls('NSString'), sel('stringWithUTF8String:'), text)
 end

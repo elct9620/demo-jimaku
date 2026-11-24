@@ -5,38 +5,31 @@ def on_audio(_user, queue, buffer, _time, _packets, _descriptions) # rubocop:dis
   Microphone.current.receive(queue, buffer)
 end
 
+# AudioQueue records into buffers it hands back on a run loop; audio_toolbox.c fills in its structs.
+module AudioToolbox
+  ffi_cflags '-framework AudioToolbox'
+
+  ffi_callback :on_audio, %i[ptr ptr ptr ptr uint32 ptr], :void
+  ffi_func :audio_queue_open, %i[on_audio double], :ptr
+  ffi_func :audio_queue_new_buffer, %i[ptr uint32], :ptr
+  ffi_func :audio_queue_buffer_copy, %i[ptr ptr], :uint32
+  ffi_func :AudioQueueEnqueueBuffer, %i[ptr ptr uint32 ptr], :int
+  ffi_func :AudioQueueStart, %i[ptr ptr], :int
+end
+
+module CoreFoundation
+  ffi_cflags '-framework CoreFoundation'
+
+  ffi_func :run_until_interrupted, [], :void
+end
+
 # What the microphone has heard so far, as contiguous 32-bit floats whisper can read.
 class Microphone
-  # macOS calls back on the run loop we name, so the audio callback can be plain Ruby.
-  module AudioQueue
-    extend FFI::Library
-
-    ffi_cflags '-framework AudioToolbox -framework CoreFoundation'
-
-    ffi_callback :on_audio, %i[ptr ptr ptr ptr uint32 ptr], :void
-    ffi_func :AudioQueueNewInput, %i[ptr on_audio ptr ptr ptr uint32 ptr], :int
-    attach_function :allocate, :AudioQueueAllocateBuffer, %i[ptr uint32 ptr], :int
-    attach_function :enqueue,  :AudioQueueEnqueueBuffer,  %i[ptr ptr uint32 ptr], :int
-    attach_function :start,    :AudioQueueStart,          %i[ptr ptr], :int
-    attach_function :current_run_loop, :CFRunLoopGetCurrent, [], :ptr
-    attach_function :run_forever, :CFRunLoopRun, [], :void
-    attach_function :memcpy, %i[ptr ptr size_t], :ptr
-    ffi_func :signal, %i[int ptr], :ptr
-
-    ffi_buffer   :out, 8
-    ffi_read_ptr :out_pointer, 0
-    ffi_read_ptr :audio_data, 8
-    ffi_read_u32 :audio_size, 16
-  end
-
   RATE = 16_000
   SAMPLE_BYTES = 4
   KEPT_SECONDS = 60
   QUEUED_BUFFERS = 40 # together they hold 2 seconds, longer than a transcription blocks the run loop
   BUFFER_BYTES = RATE / 20 * SAMPLE_BYTES # 50 milliseconds of audio
-  LINEAR_PCM = 0x6C70636D
-  PACKED_FLOAT = 9
-  SIGINT = 2
 
   class << self
     attr_accessor :current
@@ -53,9 +46,7 @@ class Microphone
     Microphone.current = self
     @on_heard = on_heard
     start_queue
-    # Ruby handles Ctrl+C at a safe point, which the run loop never reaches, so the system's default takes over.
-    AudioQueue.signal(SIGINT, nil)
-    AudioQueue.run_forever
+    CoreFoundation.run_until_interrupted
   end
 
   def between(from, to) = @samples.slice(from * SAMPLE_BYTES, (to - from) * SAMPLE_BYTES)
@@ -66,38 +57,21 @@ class Microphone
   end
 
   def receive(queue, buffer)
-    frames = AudioQueue.audio_size(buffer) / SAMPLE_BYTES
-    AudioQueue.memcpy(between(@heard, @heard + frames), AudioQueue.audio_data(buffer), frames * SAMPLE_BYTES)
-    @heard += frames
-    AudioQueue.enqueue(queue, buffer, 0, nil)
+    room = between(@heard, @heard + (BUFFER_BYTES / SAMPLE_BYTES))
+    @heard += AudioToolbox.audio_queue_buffer_copy(buffer, room) / SAMPLE_BYTES
+    AudioToolbox.AudioQueueEnqueueBuffer(queue, buffer, 0, nil)
     @on_heard.call
   end
 
   private
 
   def start_queue
-    queue = new_queue
+    queue = AudioToolbox.audio_queue_open(method(:on_audio), RATE.to_f)
     QUEUED_BUFFERS.times { enqueue_new_buffer(queue) }
-    AudioQueue.start(queue, nil)
-  end
-
-  def new_queue
-    run_loop = AudioQueue.current_run_loop
-    AudioQueue.AudioQueueNewInput(audio_format, method(:on_audio), nil, run_loop, nil, 0, AudioQueue.out)
-    AudioQueue.out_pointer(AudioQueue.out)
+    AudioToolbox.AudioQueueStart(queue, nil)
   end
 
   def enqueue_new_buffer(queue)
-    AudioQueue.allocate(queue, BUFFER_BYTES, AudioQueue.out)
-    AudioQueue.enqueue(queue, AudioQueue.out_pointer(AudioQueue.out), 0, nil)
-  end
-
-  # AudioStreamBasicDescription: mono 32-bit float.
-  def audio_format
-    description = IO::Buffer.new(40)
-    description.set_value(:f64, 0, RATE.to_f)
-    fields = [LINEAR_PCM, PACKED_FLOAT, SAMPLE_BYTES, 1, SAMPLE_BYTES, 1, SAMPLE_BYTES * 8, 0]
-    description.set_values([:u32] * fields.size, 8, fields)
-    description
+    AudioToolbox.AudioQueueEnqueueBuffer(queue, AudioToolbox.audio_queue_new_buffer(queue, BUFFER_BYTES), 0, nil)
   end
 end

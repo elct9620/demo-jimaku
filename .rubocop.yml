@@ -9,3 +9,7 @@ AllCops:
 
 Style/Documentation:
   Enabled: false
+
+# A file reads as one step of the pipeline, so the C libraries it binds sit beside the class that uses them.
+Style/OneClassPerFile:
+  Enabled: false

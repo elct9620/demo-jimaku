@@ -73,16 +73,23 @@ spin run
 | `transcriber.rb` | 把一句話轉成文字 |
 | `subtitle_bar.rb` | 顯示字幕列 |
 | `hugging_face_cache.rb` | 找到已下載的模型 |
-| `speech.c` | 傳遞 whisper.cpp 的參數結構 |
+| `whisper.rb` | 連結 whisper.cpp，供辨識與斷句共用 |
 
 ## 原生呼叫
 
-所有原生功能都透過 Spinel 的 FFI 呼叫，不依賴任何 gem。
+所有原生功能都透過 Spinel 的 `ffi_func` 在編譯時綁定，不依賴任何 gem。每個 C 函式庫對應一個同名的 Ruby module，呼叫時直接使用 C 的函式名稱。
 
 | 對象 | 呼叫方式 |
 |------|----------|
 | AudioQueue | 回呼直接執行 Ruby 方法 |
-| AppKit | 經由 `objc_msgSend` 傳送訊息 |
+| AppKit | 經由 `objc_msgSend` 傳送訊息，每種參數形狀各一個 module |
 | whisper.cpp | 靜態連結 `libwhisper.a` |
 
-whisper.cpp 有些函式以傳值方式接收結構，FFI 無法傳遞，因此由 `speech.c` 包裝成只收指標與數值的函式。
+FFI 無法傳遞的 C 形狀（以傳值方式傳遞的結構、out 參數、巨集常數），由與函式庫同名的 `.c` 檔包裝成只收指標與數值的函式。判斷與流程都留在 Ruby。
+
+| C 檔 | 包裝的形狀 |
+|------|------------|
+| `audio_toolbox.c` | 音訊格式結構、新 queue 與 buffer 的 out 參數、buffer 的欄位 |
+| `core_foundation.c` | 執行 run loop 前，把 Ctrl+C 交還系統預設處理 |
+| `objc.c` | 以傳值方式傳遞矩形的訊息 |
+| `whisper.c` | whisper.cpp 的參數結構 |

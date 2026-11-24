@@ -2,23 +2,10 @@
 
 require 'hugging_face_cache'
 require 'microphone'
+require 'whisper'
 
 # Silero VAD over everything heard so far: where does the first sentence start and end?
 class SentenceDetector
-  # whisper.cpp voice activity detection. speech.c covers the calls that take a struct by value,
-  # and Transcriber::Whisper links the library.
-  module Vad
-    extend FFI::Library
-
-    attach_function :load_model,    :vad_load, [:str], :ptr
-    attach_function :detect,        :whisper_vad_detect_speech, %i[ptr ptr int], :bool
-    attach_function :segments,      :vad_segments, %i[ptr int double], :ptr
-    attach_function :segment_count, :whisper_vad_segments_n_segments,     [:ptr], :int
-    attach_function :start_at,      :whisper_vad_segments_get_segment_t0, %i[ptr int], :float
-    attach_function :end_at,        :whisper_vad_segments_get_segment_t1, %i[ptr int], :float
-    attach_function :free,          :whisper_vad_free_segments, [:ptr], :void
-  end
-
   MODEL_REPO = 'ggml-org/whisper-vad'
   MODEL_FILE = 'ggml-silero-v6.2.0.bin'
   SILENCE_MS = 250 # this much silence ends a sentence
@@ -28,21 +15,22 @@ class SentenceDetector
   attr_reader :from, :to
 
   def initialize
-    @vad = Vad.load_model(HuggingFaceCache.path_of(MODEL_REPO, MODEL_FILE))
+    @vad = Whisper.vad_load(HuggingFaceCache.path_of(MODEL_REPO, MODEL_FILE))
     @from = 0
     @to = 0
     @count = 0
   end
 
   def detect(mic)
-    Vad.detect(@vad, mic.samples, mic.heard)
-    segments = Vad.segments(@vad, SILENCE_MS, MAX_SPEECH_S)
-    @count = Vad.segment_count(segments)
+    Whisper.whisper_vad_detect_speech(@vad, mic.samples, mic.heard)
+    segments = Whisper.vad_segments(@vad, SILENCE_MS, MAX_SPEECH_S)
+    @count = Whisper.whisper_vad_segments_n_segments(segments)
     if speech?
-      @from = (Vad.start_at(segments, 0) * SAMPLES_PER_CENTISECOND).to_i
-      @to = [(Vad.end_at(segments, 0) * SAMPLES_PER_CENTISECOND).to_i, mic.heard].min
+      @from = (Whisper.whisper_vad_segments_get_segment_t0(segments, 0) * SAMPLES_PER_CENTISECOND).to_i
+      to = Whisper.whisper_vad_segments_get_segment_t1(segments, 0) * SAMPLES_PER_CENTISECOND
+      @to = [to.to_i, mic.heard].min
     end
-    Vad.free(segments)
+    Whisper.whisper_vad_free_segments(segments)
   end
 
   def speech? = @count.positive?
